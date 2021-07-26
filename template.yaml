@@ -1,0 +1,98 @@
+# https://github.com/awslabs/serverless-application-model/blob/develop/versions/2016-10-31.md
+# Indentation needs to be set with spaces, because YAML...
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+    Api:
+        # API Gateway regional endpoints
+        EndpointConfiguration: EDGE
+        Cors:
+            AllowMethods: "'*'"
+            AllowHeaders: "'*'"
+            AllowOrigin: "'*'"
+        MinimumCompressionSize: 100
+
+Resources:
+    DuelsUpdateLeaderboardQueue:
+        Type: AWS::SQS::Queue
+        Properties:
+            QueueName: duels-update-leaderboard
+            VisibilityTimeout: 601
+    DuelsUpdateLeaderboardQueuePolicy:
+        Type: AWS::SQS::QueuePolicy
+        Properties:
+            PolicyDocument:
+                Version: '2012-10-17'
+                Id: DuelsUpdateLeaderboardQueuePolicy
+                Statement:
+                    - Sid: Allow-SNS-SendMessage
+                      Effect: Allow
+                      Principal:
+                          AWS: '*'
+                      Action:
+                          - sqs:SendMessage
+                      Resource: !GetAtt DuelsUpdateLeaderboardQueue.Arn
+                      Condition:
+                          ArnEquals:
+                              aws:SourceArn: arn:aws:sns:us-west-2:478062583808:duels-review-published
+            Queues:
+                - !Ref DuelsUpdateLeaderboardQueue
+    SnsSubscription:
+        Type: AWS::SNS::Subscription
+        Properties:
+            Protocol: SQS
+            Endpoint: !GetAtt DuelsUpdateLeaderboardQueue.Arn
+            TopicArn: arn:aws:sns:us-west-2:478062583808:duels-review-published
+
+    ProcessUpdateLeaderboardFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: process-update-leaderboard.default
+            Runtime: nodejs12.x
+            CodeUri: ./dist/process-update-leaderboard
+            Timeout: 4
+            MemorySize: 128
+            ReservedConcurrentExecutions: 5
+            Policies:
+                - AWSLambdaVPCAccessExecutionRole
+                - SecretsManagerReadWrite
+                - AmazonSESFullAccess
+                - AmazonSQSFullAccess
+                # - arn:aws:iam::478062583808:policy/CloudWatchPolicyForLambda # See https://stackoverflow.com/questions/51166504/disable-cloudwatch-to-monitor-logs-for-lambda-function
+            Tags:
+                LambdaName: process-update-leaderboard
+            Events:
+                SQSEvent:
+                    Type: SQS
+                    Properties:
+                        Queue: !GetAtt DuelsUpdateLeaderboardQueue.Arn
+    RetrieveDuelsLeaderboardFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: retrieve-duels-leaderboard.default
+            Runtime: nodejs12.x
+            # 30s is the max timeout allowed by the API Gateway for synchronous requests
+            Timeout: 29
+            # ReservedConcurrentExecutions: 80
+            MemorySize: 128 # Need to increase the memory to go faster and avoid the 30s timeout on the API gateway
+            CodeUri: ./dist/retrieve-duels-leaderboard
+            Policies:
+                - AWSLambdaVPCAccessExecutionRole
+                - AmazonSESFullAccess
+                - SecretsManagerReadWrite
+                # - arn:aws:iam::478062583808:policy/CloudWatchPolicyForLambda # See https://stackoverflow.com/questions/51166504/disable-cloudwatch-to-monitor-logs-for-lambda-function
+            Tags:
+                LambdaName: api-retrieve-duels-leaderboard
+            Events:
+                RetrieveDuelsLeaderboardResource:
+                    Type: Api
+                    Properties:
+                        Path: /get/{proxy+}
+                        Method: any
+
+Outputs:
+    RetrieveDuelsLeaderboardApi:
+        Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/duelsLeaderboard'
+        Export:
+            Name: RetrieveDuelsLeaderboardApi
