@@ -3,7 +3,7 @@ import { ServerlessMysql } from 'serverless-mysql';
 import SqlString from 'sqlstring';
 import { gzipSync } from 'zlib';
 import { getConnection } from './db/rds';
-import { DuelsLeaderboardEntry } from './duels-leaderboard-entry';
+import { DuelsLeaderboard, DuelsLeaderboardEntry } from './duels-leaderboard-entry';
 
 // This example demonstrates a NodeJS 8.10 async handler[1], however of course you could use
 // the more traditional callback-style handler.
@@ -24,15 +24,16 @@ export default async (event): Promise<any> => {
 	console.log('running query', query);
 	const dbResults: any[] = await mysql.query(query);
 	console.log('result', dbResults);
-
-	const top100 = dbResults.slice(0, 100).map((result, index) => ({
-		rank: index + 1,
-		playerName: cleanBTag(result.playerName),
-		rating: result.rating,
-	}));
-	const results = addPlayerInfoToResults(top100, dbResults, playerName);
-
 	await mysql.end();
+
+	const paidDuels = dbResults.filter(result => result.gameMode === 'paid-duels');
+	const casualDuels = dbResults.filter(result => result.gameMode === 'duels');
+
+	const results: DuelsLeaderboard = {
+		heroic: buildLeaderboard(paidDuels, playerName),
+		casual: buildLeaderboard(casualDuels, playerName),
+	};
+
 	const stringResults = JSON.stringify({ results });
 	const gzippedResults = gzipSync(stringResults).toString('base64');
 	const response = {
@@ -89,4 +90,14 @@ const addPlayerInfoToResults = (
 	const playerInfo = dbResults[playerInfoRank];
 	console.log('found playerInfo', playerInfo);
 	return [...top100, { rank: playerInfoRank, playerName: playerName, rating: playerInfo.rating, isPlayer: true }];
+};
+
+const buildLeaderboard = (dbResults: any[], playerName: string): readonly DuelsLeaderboardEntry[] => {
+	const top100 = dbResults.slice(0, 100).map((result, index) => ({
+		rank: index + 1,
+		playerName: cleanBTag(result.playerName),
+		rating: result.rating,
+	}));
+	const results = addPlayerInfoToResults(top100, dbResults, playerName);
+	return results;
 };

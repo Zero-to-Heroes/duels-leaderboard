@@ -34,7 +34,9 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 	}
 
 	const playerName = review.playerName;
-	const query = `SELECT id FROM duels_leaderboard WHERE playerName = ${SqlString.escape(review.playerName)}`;
+	const query = `
+		SELECT id FROM duels_leaderboard 
+		WHERE playerName = ${SqlString.escape(review.playerName)} AND gameMode = ${SqlString.escape(review.gameMode)}`;
 	console.log('running query', query);
 	const results: any[] = await mysql.query(query);
 
@@ -52,8 +54,13 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 		console.log('update result', updateResult);
 	} else {
 		const insertQuery = `
-			INSERT INTO duels_leaderboard (playerName, rating, lastUpdateDate)
-			VALUES (${SqlString.escape(playerName)}, ${SqlString.escape(playerRank)}, ${SqlString.escape(review.creationDate)})
+			INSERT INTO duels_leaderboard (playerName, gameMode, rating, lastUpdateDate)
+			VALUES (
+				${SqlString.escape(playerName)}, 
+				${SqlString.escape(review.gameMode)}, 
+				${SqlString.escape(playerRank)}, 
+				${SqlString.escape(review.creationDate)}
+			)
 		`;
 		console.log('running insert query', insertQuery);
 		const insertResult = await mysql.query(insertQuery);
