@@ -9,11 +9,11 @@ import { DuelsLeaderboard, DuelsLeaderboardEntry } from './duels-leaderboard-ent
 // the more traditional callback-style handler.
 // [1]: https://aws.amazon.com/blogs/compute/node-js-8-10-runtime-now-available-in-aws-lambda/
 export default async (event): Promise<any> => {
-	console.log('doing nothing yet');
-
 	const input = JSON.parse(event.body);
+	console.log('received input', input);
 	const mysql = await getConnection();
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
+	console.log('playerName', playerName);
 
 	const startDate = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000);
 	const query = `
@@ -62,7 +62,7 @@ const getPlayerName = async (userId: string, userName: string, mysql: Serverless
 		return null;
 	}
 
-	return cleanBTag(result[0].playerName);
+	return result[0].playerName;
 };
 
 const cleanBTag = (btag: string): string => {
@@ -73,25 +73,6 @@ const cleanBTag = (btag: string): string => {
 	return btag.split('#')[0];
 };
 
-const addPlayerInfoToResults = (
-	top100: readonly DuelsLeaderboardEntry[],
-	dbResults: readonly any[],
-	playerName: string,
-): readonly DuelsLeaderboardEntry[] => {
-	if (top100.map(player => player.playerName).includes(playerName)) {
-		return top100.map(player => (player.playerName === playerName ? { ...player, isPlayer: true } : player));
-	}
-
-	const playerInfoRank = dbResults.findIndex((info, index) => info.playerName === playerName);
-	if (playerInfoRank === -1) {
-		return top100;
-	}
-
-	const playerInfo = dbResults[playerInfoRank];
-	console.log('found playerInfo', playerInfo);
-	return [...top100, { rank: playerInfoRank, playerName: playerName, rating: playerInfo.rating, isPlayer: true }];
-};
-
 const buildLeaderboard = (dbResults: any[], playerName: string): readonly DuelsLeaderboardEntry[] => {
 	const top100 = dbResults.slice(0, 100).map((result, index) => ({
 		rank: index + 1,
@@ -100,4 +81,28 @@ const buildLeaderboard = (dbResults: any[], playerName: string): readonly DuelsL
 	}));
 	const results = addPlayerInfoToResults(top100, dbResults, playerName);
 	return results;
+};
+
+const addPlayerInfoToResults = (
+	top100: readonly DuelsLeaderboardEntry[],
+	dbResults: readonly any[],
+	playerName: string,
+): readonly DuelsLeaderboardEntry[] => {
+	if (top100.map(player => player.playerName).includes(playerName)) {
+		console.log('player in top 100');
+		return top100.map(player => (player.playerName === playerName ? { ...player, isPlayer: true } : player));
+	}
+
+	const playerInfoRank = dbResults.findIndex((info, index) => info.playerName === playerName);
+	if (playerInfoRank === -1) {
+		console.log('no player info');
+		return top100;
+	}
+
+	const playerInfo = dbResults[playerInfoRank];
+	console.log('found playerInfo', playerInfo);
+	return [
+		...top100,
+		{ rank: playerInfoRank, playerName: cleanBTag(playerName), rating: playerInfo.rating, isPlayer: true },
+	];
 };
