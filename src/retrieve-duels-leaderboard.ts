@@ -15,7 +15,7 @@ export default async (event): Promise<any> => {
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
 	console.log('playerName', playerName);
 
-	const startDate = new Date(new Date().getTime() - 30 * 24 * 60 * 60 * 1000);
+	const startDate = new Date(new Date().getTime() - 15 * 24 * 60 * 60 * 1000);
 	const query = `
 		SELECT * FROM duels_leaderboard
 		WHERE lastUpdateDate >= ${SqlString.escape(startDate.toISOString())}
