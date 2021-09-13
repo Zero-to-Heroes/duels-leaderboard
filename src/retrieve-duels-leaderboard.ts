@@ -103,6 +103,7 @@ const addPlayerInfoToResults = (
 	console.log('found playerInfo', playerInfo);
 	return [
 		...top100,
-		{ rank: playerInfoRank, playerName: cleanBTag(playerName), rating: playerInfo.rating, isPlayer: true },
+		// Because index is 0-based
+		{ rank: playerInfoRank + 1, playerName: cleanBTag(playerName), rating: playerInfo.rating, isPlayer: true },
 	];
 };
