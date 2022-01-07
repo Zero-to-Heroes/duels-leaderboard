@@ -49,9 +49,10 @@ export default async (event): Promise<any> => {
 };
 
 const getPlayerName = async (userId: string, userName: string, mysql: ServerlessMysql): Promise<string> => {
+	const userNameCrit = userName ? `OR userName = ${SqlString.escape(userName)}` : '';
 	const query = `
 		SELECT playerName FROM replay_summary
-		WHERE userId = ${SqlString.escape(userId)} OR userName = ${SqlString.escape(userName)}
+		WHERE userId = ${SqlString.escape(userId)} ${userNameCrit}
 		ORDER BY creationDate DESC
 		LIMIT 1;
 	`;
