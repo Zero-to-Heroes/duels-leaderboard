@@ -123,7 +123,7 @@ const addPlayerInfoToResults = (
 
 	const playerInfoRank = dbResults.findIndex((info, index) => info.playerName === playerName);
 	if (playerInfoRank === -1) {
-		console.log('no player info');
+		// console.log('no player info');
 		return top100;
 	}
 
