@@ -5,6 +5,8 @@ import { gzipSync } from 'zlib';
 import { getConnection } from './db/rds';
 import { DuelsLeaderboard, DuelsLeaderboardEntry } from './duels-leaderboard-entry';
 
+const LEADERBOARD_CACHE_TIME = 1000 * 60 * 5;
+
 // This example demonstrates a NodeJS 8.10 async handler[1], however of course you could use
 // the more traditional callback-style handler.
 // [1]: https://aws.amazon.com/blogs/compute/node-js-8-10-runtime-now-available-in-aws-lambda/
@@ -13,21 +15,13 @@ export default async (event): Promise<any> => {
 	console.log('received input', input);
 	const mysql = await getConnection();
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
-	console.log('playerName', playerName);
+	// console.log('playerName', playerName);
 
-	const startDate = new Date(new Date().getTime() - 15 * 24 * 60 * 60 * 1000);
-	const query = `
-		SELECT * FROM duels_leaderboard
-		WHERE lastUpdateDate >= ${SqlString.escape(startDate.toISOString())}
-		ORDER BY rating DESC
-	`;
-	console.log('running query', query);
-	const dbResults: any[] = await mysql.query(query);
-	console.log('result', dbResults);
+	const leaderboardDbResults: any[] = await getLeaderboard(mysql);
 	await mysql.end();
 
-	const paidDuels = dbResults.filter(result => result.gameMode === 'paid-duels');
-	const casualDuels = dbResults.filter(result => result.gameMode === 'duels');
+	const paidDuels = leaderboardDbResults.filter(result => result.gameMode === 'paid-duels');
+	const casualDuels = leaderboardDbResults.filter(result => result.gameMode === 'duels');
 
 	const results: DuelsLeaderboard = {
 		heroic: buildLeaderboard(paidDuels, playerName),
@@ -48,17 +42,50 @@ export default async (event): Promise<any> => {
 	return response;
 };
 
+let lastRetrieveDate: Date = null;
+let leaderboardCache: any[] = [];
+const getLeaderboard = async (mysql: ServerlessMysql) => {
+	if (
+		!leaderboardCache?.length ||
+		!lastRetrieveDate ||
+		Date.now() - lastRetrieveDate.getTime() > LEADERBOARD_CACHE_TIME
+	) {
+		const startDate = new Date(new Date().getTime() - 15 * 24 * 60 * 60 * 1000);
+		const query = `
+			SELECT * FROM duels_leaderboard
+			WHERE lastUpdateDate >= ${SqlString.escape(startDate.toISOString())}
+			ORDER BY rating DESC
+		`;
+		// console.log('running query', query);
+		const dbResults: any[] = await mysql.query(query);
+		// console.log('result', dbResults);
+		leaderboardCache = dbResults;
+		lastRetrieveDate = new Date();
+		return dbResults;
+	}
+	// console.log('returning leaderboard from cache', leaderboardCache);
+	return leaderboardCache;
+};
+
 const getPlayerName = async (userId: string, userName: string, mysql: ServerlessMysql): Promise<string> => {
 	const userNameCrit = userName ? `OR userName = ${SqlString.escape(userName)}` : '';
-	const query = `
-		SELECT playerName FROM replay_summary
+	const userIdsQuery = `
+		SELECT DISTINCT userId 
+		FROM user_mapping
 		WHERE userId = ${SqlString.escape(userId)} ${userNameCrit}
-		ORDER BY creationDate DESC
-		LIMIT 1;
 	`;
-	console.log('running query', query);
+	// console.log('running query', userIdsQuery);
+	const results: any[] = await mysql.query(userIdsQuery);
+	// console.log('result', results);
+	const query = `
+		SELECT playerName
+		FROM replay_summary WHERE userId IN (${results.map(r => SqlString.escape(r.userId)).join(',')})
+		ORDER BY creationDate DESC
+		LIMIT 1
+	`;
+	// console.log('running query', query);
 	const result: any[] = await mysql.query(query);
-	console.log('result', result);
+	// console.log('result', result);
 	if (!result?.length) {
 		return null;
 	}
