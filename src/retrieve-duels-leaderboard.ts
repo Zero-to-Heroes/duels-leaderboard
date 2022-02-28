@@ -15,7 +15,7 @@ export default async (event): Promise<any> => {
 	console.log('received input', input);
 	const mysql = await getConnection();
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
-	// console.log('playerName', playerName);
+	console.log('playerName', playerName);
 
 	const leaderboardDbResults: any[] = await getLeaderboard(mysql);
 	await mysql.end();
@@ -80,7 +80,6 @@ const getPlayerName = async (userId: string, userName: string, mysql: Serverless
 	const query = `
 		SELECT playerName
 		FROM replay_summary WHERE userId IN (${results.map(r => SqlString.escape(r.userId)).join(',')})
-		ORDER BY creationDate DESC
 		LIMIT 1
 	`;
 	// console.log('running query', query);
