@@ -105,6 +105,7 @@ const buildLeaderboard = (dbResults: any[], playerName: string): readonly DuelsL
 		rank: index + 1,
 		playerName: cleanBTag(result.playerName),
 		rating: result.rating,
+		region: result.region,
 	}));
 	const results = addPlayerInfoToResults(top100, dbResults, playerName);
 	return results;
@@ -130,7 +131,13 @@ const addPlayerInfoToResults = (
 	console.log('found playerInfo', playerInfo);
 	return [
 		...top100,
-		// Because index is 0-based
-		{ rank: playerInfoRank + 1, playerName: cleanBTag(playerName), rating: playerInfo.rating, isPlayer: true },
+		{
+			// Because index is 0-based
+			rank: playerInfoRank + 1,
+			playerName: cleanBTag(playerName),
+			rating: playerInfo.rating,
+			isPlayer: true,
+			region: playerInfo.region,
+		},
 	];
 };

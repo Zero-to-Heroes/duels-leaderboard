@@ -46,7 +46,8 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 			UPDATE duels_leaderboard
 			SET 
 				rating = ${SqlString.escape(review.playerRank)},
-				lastUpdateDate = ${SqlString.escape(review.creationDate)}
+				lastUpdateDate = ${SqlString.escape(review.creationDate)},
+				region = ${SqlString.escape(review.region)}
 			WHERE id = ${SqlString.escape(id)}
 		`;
 		console.log('running update query', updateQuery);
@@ -54,12 +55,13 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 		console.log('update result', updateResult);
 	} else {
 		const insertQuery = `
-			INSERT INTO duels_leaderboard (playerName, gameMode, rating, lastUpdateDate)
+			INSERT INTO duels_leaderboard (playerName, gameMode, rating, lastUpdateDate, region)
 			VALUES (
 				${SqlString.escape(playerName)}, 
 				${SqlString.escape(review.gameMode)}, 
 				${SqlString.escape(playerRank)}, 
-				${SqlString.escape(review.creationDate)}
+				${SqlString.escape(review.creationDate)},
+				${SqlString.escape(review.region)}
 			)
 		`;
 		console.log('running insert query', insertQuery);

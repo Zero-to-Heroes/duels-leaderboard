@@ -1,4 +1,4 @@
-import { Race } from '@firestone-hs/reference-data';
+import { BnetRegion, Race } from '@firestone-hs/reference-data';
 
 export interface ReviewMessage {
 	readonly replayKey: string;
@@ -30,4 +30,5 @@ export interface ReviewMessage {
 	readonly bannedTribes: readonly Race[];
 	readonly currentDuelsRunId: string;
 	readonly appVersion: string;
+	readonly region: BnetRegion;
 }
