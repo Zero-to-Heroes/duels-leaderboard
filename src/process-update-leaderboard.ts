@@ -28,12 +28,18 @@ const handleReviews = async (reviews: readonly ReviewMessage[]) => {
 };
 
 const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Promise<void> => {
+	console.log('handling review', review);
 	const playerRank = review.playerRank ? parseInt(review.playerRank) : null;
 	if (!playerRank) {
 		return;
 	}
 
 	const playerName = review.playerName;
+	if (!playerName && review.appVersion === '9.3.5') {
+		console.log('ignoring bogus version');
+		return;
+	}
+
 	const query = `
 		SELECT id FROM duels_leaderboard 
 		WHERE playerName = ${SqlString.escape(review.playerName)} AND gameMode = ${SqlString.escape(review.gameMode)}`;
