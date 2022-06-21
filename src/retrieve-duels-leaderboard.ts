@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
+import { logBeforeTimeout, logger } from '@firestone-hs/aws-lambda-utils';
 import { ServerlessMysql } from 'serverless-mysql';
 import SqlString from 'sqlstring';
 import { gzipSync } from 'zlib';
@@ -10,12 +11,13 @@ const LEADERBOARD_CACHE_TIME = 1000 * 60 * 5;
 // This example demonstrates a NodeJS 8.10 async handler[1], however of course you could use
 // the more traditional callback-style handler.
 // [1]: https://aws.amazon.com/blogs/compute/node-js-8-10-runtime-now-available-in-aws-lambda/
-export default async (event): Promise<any> => {
+export default async (event, context): Promise<any> => {
+	const cleanup = logBeforeTimeout(context);
 	const input = JSON.parse(event.body);
-	console.log('received input', input);
+	logger.debug('received input', input);
 	const mysql = await getConnection();
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
-	console.log('playerName', playerName);
+	logger.debug('playerName', playerName);
 
 	const leaderboardDbResults: any[] = await getLeaderboard(mysql);
 	await mysql.end();
@@ -39,6 +41,7 @@ export default async (event): Promise<any> => {
 			'Content-Encoding': 'gzip',
 		},
 	};
+	cleanup();
 	return response;
 };
 
@@ -56,14 +59,14 @@ const getLeaderboard = async (mysql: ServerlessMysql) => {
 			WHERE lastUpdateDate >= ${SqlString.escape(startDate.toISOString())}
 			ORDER BY rating DESC
 		`;
-		// console.log('running query', query);
+		logger.debug('running query', query);
 		const dbResults: any[] = await mysql.query(query);
-		// console.log('result', dbResults);
+		logger.debug('result', dbResults);
 		leaderboardCache = dbResults;
 		lastRetrieveDate = new Date();
 		return dbResults;
 	}
-	// console.log('returning leaderboard from cache', leaderboardCache);
+	logger.debug('returning leaderboard from cache', leaderboardCache);
 	return leaderboardCache;
 };
 
@@ -74,17 +77,21 @@ const getPlayerName = async (userId: string, userName: string, mysql: Serverless
 		FROM user_mapping
 		WHERE userId = ${SqlString.escape(userId)} ${userNameCrit}
 	`;
-	// console.log('running query', userIdsQuery);
+	logger.debug('running query', userIdsQuery);
 	const results: any[] = await mysql.query(userIdsQuery);
-	// console.log('result', results);
+	logger.debug('result', results);
+	if (!results?.length) {
+		return null;
+	}
+
 	const query = `
 		SELECT playerName
 		FROM replay_summary WHERE userId IN (${results.map(r => SqlString.escape(r.userId)).join(',')})
 		LIMIT 1
 	`;
-	// console.log('running query', query);
+	logger.debug('running query', query);
 	const result: any[] = await mysql.query(query);
-	// console.log('result', result);
+	logger.debug('result', result);
 	if (!result?.length) {
 		return null;
 	}
@@ -117,18 +124,18 @@ const addPlayerInfoToResults = (
 	playerName: string,
 ): readonly DuelsLeaderboardEntry[] => {
 	if (top100.map(player => player.playerName).includes(playerName)) {
-		console.log('player in top 100');
+		logger.debug('player in top 100');
 		return top100.map(player => (player.playerName === playerName ? { ...player, isPlayer: true } : player));
 	}
 
 	const playerInfoRank = dbResults.findIndex((info, index) => info.playerName === playerName);
 	if (playerInfoRank === -1) {
-		// console.log('no player info');
+		// logger.debug('no player info');
 		return top100;
 	}
 
 	const playerInfo = dbResults[playerInfoRank];
-	console.log('found playerInfo', playerInfo);
+	logger.debug('found playerInfo', playerInfo);
 	return [
 		...top100,
 		{
