@@ -32,6 +32,12 @@ const handleReviews = async (reviews: readonly ReviewMessage[]) => {
 
 const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Promise<void> => {
 	logger.debug('handling review', review);
+	const useNewProcess = true;
+	if (useNewProcess) {
+		console.log('new process, returning');
+		return;
+	}
+
 	const playerRank = review.playerRank ? parseInt(review.playerRank) : null;
 	if (!playerRank) {
 		return;
