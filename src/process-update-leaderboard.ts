@@ -51,7 +51,10 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 
 	const query = `
 		SELECT id FROM duels_leaderboard 
-		WHERE playerName = ${SqlString.escape(review.playerName)} AND gameMode = ${SqlString.escape(review.gameMode)}`;
+		WHERE playerName = ${SqlString.escape(review.playerName)} 
+		AND gameMode = ${SqlString.escape(review.gameMode)}
+		AND region = ${SqlString.escape(review.region)}
+	`;
 	logger.debug('running query', query);
 	const results: any[] = await mysql.query(query);
 
@@ -61,8 +64,7 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 			UPDATE duels_leaderboard
 			SET 
 				rating = ${SqlString.escape(review.playerRank)},
-				lastUpdateDate = ${SqlString.escape(review.creationDate)},
-				region = ${SqlString.escape(review.region)}
+				lastUpdateDate = ${SqlString.escape(review.creationDate)}
 			WHERE id = ${SqlString.escape(id)}
 		`;
 		logger.debug('running update query', updateQuery);
