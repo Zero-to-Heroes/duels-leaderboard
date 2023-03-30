@@ -71,11 +71,17 @@ const getLeaderboard = async (mysql: ServerlessMysql) => {
 };
 
 const getPlayerName = async (userId: string, userName: string, mysql: ServerlessMysql): Promise<string> => {
-	const userNameCrit = userName ? `OR userName = ${SqlString.escape(userName)}` : '';
 	const userIdsQuery = `
-		SELECT DISTINCT userId 
-		FROM user_mapping
-		WHERE userId = ${SqlString.escape(userId)} ${userNameCrit}
+		SELECT DISTINCT userId FROM user_mapping
+		INNER JOIN (
+			SELECT DISTINCT username FROM user_mapping
+			WHERE 
+				(username = ${SqlString.escape(userId)} OR userId = ${SqlString.escape(userId)})
+				AND username IS NOT NULL
+				AND username != ''
+				AND username != 'null'
+		) AS x ON x.username = user_mapping.username
+		UNION ALL SELECT ${SqlString.escape(userId)}
 	`;
 	logger.debug('running query', userIdsQuery);
 	const results: any[] = await mysql.query(userIdsQuery);
