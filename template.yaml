@@ -44,34 +44,11 @@ Resources:
             Protocol: SQS
             Endpoint: !GetAtt DuelsUpdateLeaderboardQueue.Arn
             TopicArn: arn:aws:sns:us-west-2:478062583808:duels-review-published
-
-    ProcessUpdateLeaderboardFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            Handler: process-update-leaderboard.default
-            Runtime: nodejs12.x
-            CodeUri: ./dist/process-update-leaderboard
-            Timeout: 4
-            MemorySize: 128
-            ReservedConcurrentExecutions: 5
-            Policies:
-                - AWSLambdaVPCAccessExecutionRole
-                - SecretsManagerReadWrite
-                - AmazonSESFullAccess
-                - AmazonSQSFullAccess
-                # - arn:aws:iam::478062583808:policy/CloudWatchPolicyForLambda # See https://stackoverflow.com/questions/51166504/disable-cloudwatch-to-monitor-logs-for-lambda-function
-            Tags:
-                LambdaName: process-update-leaderboard
-            # Events:
-            #     SQSEvent:
-            #         Type: SQS
-            #         Properties:
-            #             Queue: !GetAtt DuelsUpdateLeaderboardQueue.Arn
     RetrieveDuelsLeaderboardFunction:
         Type: AWS::Serverless::Function
         Properties:
             Handler: retrieve-duels-leaderboard.default
-            Runtime: nodejs12.x
+            Runtime: nodejs16.x
             # 30s is the max timeout allowed by the API Gateway for synchronous requests
             Timeout: 29
             # ReservedConcurrentExecutions: 80
@@ -90,6 +67,23 @@ Resources:
                     Properties:
                         Path: /get/{proxy+}
                         Method: any
+    RetrieveDuelsLeaderboardFunction2:
+        Type: AWS::Serverless::Function
+        Properties:
+            Handler: retrieve-duels-leaderboard.default
+            Runtime: nodejs16.x
+            CodeUri: ./dist/retrieve-duels-leaderboard
+            Timeout: 29
+            Policies:
+                - AWSLambdaVPCAccessExecutionRole
+                - SecretsManagerReadWrite
+                - AmazonSESFullAccess
+                # - arn:aws:iam::478062583808:policy/CloudWatchPolicyForLambda # See https://stackoverflow.com/questions/51166504/disable-cloudwatch-to-monitor-logs-for-lambda-function
+            Tags:
+                LambdaName: api-retrieve-duels-leaderboard-2
+            AutoPublishAlias: live
+            FunctionUrlConfig:
+                AuthType: NONE
 
 Outputs:
     RetrieveDuelsLeaderboardApi:
