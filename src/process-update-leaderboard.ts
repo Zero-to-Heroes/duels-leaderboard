@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { logBeforeTimeout, logger } from '@firestone-hs/aws-lambda-utils';
+import { getConnection, logBeforeTimeout, logger } from '@firestone-hs/aws-lambda-utils';
 import { ServerlessMysql } from 'serverless-mysql';
 import SqlString from 'sqlstring';
-import { getConnection } from './db/rds';
 import { ReviewMessage } from './review-message';
 
 // This example demonstrates a NodeJS 8.10 async handler[1], however of course you could use
@@ -11,12 +10,12 @@ import { ReviewMessage } from './review-message';
 export default async (event, context): Promise<any> => {
 	const cleanup = logBeforeTimeout(context);
 	const messages: readonly ReviewMessage[] = (event.Records as any[])
-		.map(event => JSON.parse(event.body))
+		.map((event) => JSON.parse(event.body))
 		.reduce((a, b) => a.concat(b), [])
-		.filter(event => event)
-		.map(event => event.Message)
-		.filter(msg => msg)
-		.map(msg => JSON.parse(msg));
+		.filter((event) => event)
+		.map((event) => event.Message)
+		.filter((msg) => msg)
+		.map((msg) => JSON.parse(msg));
 	await handleReviews(messages);
 	cleanup();
 	return { statusCode: 200, body: null };
@@ -58,7 +57,7 @@ const handleReview = async (review: ReviewMessage, mysql: ServerlessMysql): Prom
 	logger.debug('running query', query);
 	const results: any[] = await mysql.query(query);
 
-	if (!!results?.length) {
+	if (results?.length) {
 		const id = results[0].id;
 		const updateQuery = `
 			UPDATE duels_leaderboard

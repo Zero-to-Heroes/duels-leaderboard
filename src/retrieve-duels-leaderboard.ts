@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { logBeforeTimeout, logger } from '@firestone-hs/aws-lambda-utils';
+import { getConnectionReadOnly, logBeforeTimeout, logger } from '@firestone-hs/aws-lambda-utils';
 import { ServerlessMysql } from 'serverless-mysql';
 import SqlString from 'sqlstring';
 import { gzipSync } from 'zlib';
-import { getConnection } from './db/rds';
 import { DuelsLeaderboard, DuelsLeaderboardEntry } from './duels-leaderboard-entry';
 
 const LEADERBOARD_CACHE_TIME = 1000 * 60 * 5;
@@ -15,15 +14,15 @@ export default async (event, context): Promise<any> => {
 	const cleanup = logBeforeTimeout(context);
 	const input = JSON.parse(event.body);
 	logger.debug('received input', input);
-	const mysql = await getConnection();
+	const mysql = await getConnectionReadOnly();
 	const playerName = await getPlayerName(input.userId, input.userName, mysql);
 	logger.debug('playerName', playerName);
 
 	const leaderboardDbResults: any[] = await getLeaderboard(mysql);
 	await mysql.end();
 
-	const paidDuels = leaderboardDbResults.filter(result => result.gameMode === 'paid-duels');
-	const casualDuels = leaderboardDbResults.filter(result => result.gameMode === 'duels');
+	const paidDuels = leaderboardDbResults.filter((result) => result.gameMode === 'paid-duels');
+	const casualDuels = leaderboardDbResults.filter((result) => result.gameMode === 'duels');
 
 	const results: DuelsLeaderboard = {
 		heroic: buildLeaderboard(paidDuels, playerName),
@@ -92,7 +91,7 @@ const getPlayerName = async (userId: string, userName: string, mysql: Serverless
 
 	const query = `
 		SELECT playerName
-		FROM replay_summary WHERE userId IN (${results.map(r => SqlString.escape(r.userId)).join(',')})
+		FROM replay_summary WHERE userId IN (${results.map((r) => SqlString.escape(r.userId)).join(',')})
 		LIMIT 1
 	`;
 	logger.debug('running query', query);
@@ -129,9 +128,9 @@ const addPlayerInfoToResults = (
 	dbResults: readonly any[],
 	playerName: string,
 ): readonly DuelsLeaderboardEntry[] => {
-	if (top100.map(player => player.playerName).includes(playerName)) {
+	if (top100.map((player) => player.playerName).includes(playerName)) {
 		logger.debug('player in top 100');
-		return top100.map(player => (player.playerName === playerName ? { ...player, isPlayer: true } : player));
+		return top100.map((player) => (player.playerName === playerName ? { ...player, isPlayer: true } : player));
 	}
 
 	const playerInfoRank = dbResults.findIndex((info, index) => info.playerName === playerName);
