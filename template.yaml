@@ -3,16 +3,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
-Globals:
-    Api:
-        # API Gateway regional endpoints
-        EndpointConfiguration: EDGE
-        Cors:
-            AllowMethods: "'*'"
-            AllowHeaders: "'*'"
-            AllowOrigin: "'*'"
-        MinimumCompressionSize: 100
-
 Resources:
     DuelsUpdateLeaderboardQueue:
         Type: AWS::SQS::Queue
@@ -44,29 +34,6 @@ Resources:
             Protocol: SQS
             Endpoint: !GetAtt DuelsUpdateLeaderboardQueue.Arn
             TopicArn: arn:aws:sns:us-west-2:478062583808:duels-review-published
-    RetrieveDuelsLeaderboardFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            Handler: retrieve-duels-leaderboard.default
-            Runtime: nodejs16.x
-            # 30s is the max timeout allowed by the API Gateway for synchronous requests
-            Timeout: 29
-            # ReservedConcurrentExecutions: 80
-            MemorySize: 128 # Need to increase the memory to go faster and avoid the 30s timeout on the API gateway
-            CodeUri: ./dist/retrieve-duels-leaderboard
-            Policies:
-                - AWSLambdaVPCAccessExecutionRole
-                - AmazonSESFullAccess
-                - SecretsManagerReadWrite
-                # - arn:aws:iam::478062583808:policy/CloudWatchPolicyForLambda # See https://stackoverflow.com/questions/51166504/disable-cloudwatch-to-monitor-logs-for-lambda-function
-            Tags:
-                LambdaName: api-retrieve-duels-leaderboard
-            Events:
-                RetrieveDuelsLeaderboardResource:
-                    Type: Api
-                    Properties:
-                        Path: /get/{proxy+}
-                        Method: any
     RetrieveDuelsLeaderboardFunction2:
         Type: AWS::Serverless::Function
         Properties:
@@ -84,9 +51,3 @@ Resources:
             AutoPublishAlias: live
             FunctionUrlConfig:
                 AuthType: NONE
-
-Outputs:
-    RetrieveDuelsLeaderboardApi:
-        Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/duelsLeaderboard'
-        Export:
-            Name: RetrieveDuelsLeaderboardApi
