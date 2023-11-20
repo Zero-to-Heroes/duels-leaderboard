@@ -12,6 +12,17 @@ const LEADERBOARD_CACHE_TIME = 1000 * 60 * 5;
 // [1]: https://aws.amazon.com/blogs/compute/node-js-8-10-runtime-now-available-in-aws-lambda/
 export default async (event, context): Promise<any> => {
 	const cleanup = logBeforeTimeout(context);
+	if (!event.body?.length) {
+		return {
+			statusCode: 400,
+			body: null,
+			headers: {
+				'Content-Type': 'text/html',
+				'Content-Encoding': 'gzip',
+			},
+		};
+	}
+
 	const input = JSON.parse(event.body);
 	logger.debug('received input', input);
 	const mysql = await getConnectionReadOnly();
